@@ -1,0 +1,30 @@
+{
+  "name": "sign2viet",
+  "version": "2.0.0",
+  "description": "AI-powered Sign Language to Vietnamese Translation Web App",
+  "private": true,
+  "scripts": {
+    "install": "cd client && npm install",
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "deploy": "cd client && npm run build && echo 'Ready for deployment!'"
+  },
+  "keywords": [
+    "sign-language",
+    "vietnamese",
+    "translation",
+    "ai",
+    "web-app",
+    "react",
+    "tensorflowjs",
+    "mediapipe"
+  ],
+  "author": "Sign2Viet Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/sign2viet.git"
+  },
+  "homepage": "https://your-username.github.io/sign2viet"
+}

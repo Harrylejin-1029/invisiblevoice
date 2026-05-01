@@ -18,18 +18,32 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [serverStatus, setServerStatus] = useState({ backend: true, ai: false })
+  const [appInitialized, setAppInitialized] = useState(false)
 
-  // Check AI service health
-  const checkHealth = useCallback(async () => {
-    try {
-      // Check AI service
-      const aiHealth = await aiService.healthCheck()
-      const aiHealthy = aiHealth.status === 'healthy'
-      
-      setServerStatus({ backend: true, ai: aiHealthy })
-    } catch (e) {
-      setServerStatus({ backend: true, ai: false })
+  // Initialize app and check AI service health
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Initialize AI service
+        const aiInitialized = await aiService.initialize()
+        setServerStatus({ backend: true, ai: aiInitialized })
+        
+        // Initialize database
+        await db.initialize()
+        
+        // Load initial data
+        await fetchTranslations(10)
+        await fetchStats()
+        
+        setAppInitialized(true)
+      } catch (error) {
+        console.error('Error initializing app:', error)
+        setError('Failed to initialize app')
+        setAppInitialized(true) // Allow app to continue even with errors
+      }
     }
+
+    initializeApp()
   }, [])
 
   // Fetch translations

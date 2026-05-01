@@ -1,6 +1,3 @@
-import { Hands } from '@mediapipe/hands'
-import { Camera } from '@mediapipe/camera_utils'
-
 export class HandDetector {
   constructor() {
     this.hands = null
@@ -10,6 +7,15 @@ export class HandDetector {
 
   async initialize() {
     try {
+      console.log('Loading MediaPipe Hands...')
+      
+      // Dynamic import to avoid build issues
+      const { Hands } = await import('@mediapipe/hands')
+      
+      if (!Hands) {
+        throw new Error('MediaPipe Hands not available')
+      }
+      
       this.hands = new Hands({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -23,10 +29,27 @@ export class HandDetector {
         minTrackingConfidence: 0.5
       })
 
+      // Wait for hands to be ready
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('MediaPipe initialization timeout')), 10000)
+        
+        this.hands.onResults(() => {
+          clearTimeout(timeout)
+          resolve()
+        })
+        
+        // Send a dummy image to trigger initialization
+        const canvas = document.createElement('canvas')
+        this.hands.send({ image: canvas })
+      })
+
       this.isInitialized = true
+      console.log('MediaPipe Hands initialized successfully')
       return true
     } catch (error) {
       console.error('Error initializing hand detector:', error)
+      console.warn('Hand detection will not be available')
+      this.isInitialized = false
       return false
     }
   }
@@ -34,6 +57,10 @@ export class HandDetector {
   async detect(imageElement) {
     if (!this.isInitialized) {
       await this.initialize()
+    }
+
+    if (!this.hands) {
+      return { landmarks: null, handedness: null }
     }
 
     return new Promise((resolve) => {

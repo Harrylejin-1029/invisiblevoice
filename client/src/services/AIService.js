@@ -6,18 +6,48 @@ export class AIService {
     this.handDetector = new HandDetector()
     this.gestureClassifier = new GestureClassifier()
     this.isInitialized = false
+    this.initializationPromise = null
   }
 
   async initialize() {
+    // Return existing promise if initialization is in progress
+    if (this.initializationPromise) {
+      return this.initializationPromise
+    }
+
+    // Return immediately if already initialized
+    if (this.isInitialized) {
+      return true
+    }
+
+    // Create initialization promise
+    this.initializationPromise = this._doInitialize()
+    return this.initializationPromise
+  }
+
+  async _doInitialize() {
     try {
-      await Promise.all([
-        this.handDetector.initialize(),
-        this.gestureClassifier.initialize()
+      console.log('Initializing AI service...')
+      
+      // Initialize with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('AI service initialization timeout')), 10000)
+      )
+
+      await Promise.race([
+        Promise.all([
+          this.handDetector.initialize(),
+          this.gestureClassifier.initialize()
+        ]),
+        timeoutPromise
       ])
+
       this.isInitialized = true
+      console.log('AI service initialized successfully')
       return true
     } catch (error) {
       console.error('Error initializing AI service:', error)
+      // Don't throw error, allow app to continue with limited functionality
       return false
     }
   }

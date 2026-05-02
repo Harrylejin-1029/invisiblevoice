@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, register, isLoading, error, clearError } = useAuth();
   
   const [formData, setFormData] = useState({
     email: '',

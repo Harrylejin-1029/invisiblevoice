@@ -36,21 +36,44 @@ const CameraPage = () => {
       setError(null)
       setCameraPermission('pending')
       
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      })
+      // Check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Trình duyệt không hỗ trợ truy cập camera')
+      }
+      
+      let stream
+      try {
+        // Try high quality first
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        })
+      } catch (err) {
+        console.warn('High quality camera failed, trying lower quality:', err)
+        // Fallback to lower quality
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        })
+      }
       
       streamRef.current = stream
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play()
+          videoRef.current.play().catch(err => {
+            console.error('Video play failed:', err)
+            setError('Không thể phát video. Vui lòng thử lại.')
+          })
           setIsStreaming(true)
           setCameraPermission('granted')
         }
@@ -58,7 +81,16 @@ const CameraPage = () => {
     } catch (err) {
       console.error('Camera error:', err)
       setCameraPermission('denied')
-      setError('Không thể truy cập camera. Vui lòng cấp quyền camera và thử lại.')
+      
+      if (err.name === 'NotAllowedError') {
+        setError('Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.')
+      } else if (err.name === 'NotFoundError') {
+        setError('Không tìm thấy camera. Vui lòng kết nối camera và thử lại.')
+      } else if (err.name === 'NotReadableError') {
+        setError('Camera đang được ứng dụng khác sử dụng. Vui lòng đóng các ứng dụng khác và thử lại.')
+      } else {
+        setError(`Lỗi camera: ${err.message || 'Không thể truy cập camera'}`)
+      }
     }
   }, [])
 
@@ -85,6 +117,12 @@ const CameraPage = () => {
   // Capture frame and send for prediction
   const captureAndPredict = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || isProcessing || !serverStatus.ai) {
+      console.log('Capture conditions not met:', {
+        video: !!videoRef.current,
+        canvas: !!canvasRef.current,
+        isProcessing,
+        aiReady: serverStatus.ai
+      })
       return
     }
 
@@ -95,27 +133,32 @@ const CameraPage = () => {
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
       
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+      // Set canvas dimensions to match video (optimized)
+      const width = video.videoWidth
+      const height = video.videoHeight
+      canvas.width = width
+      canvas.height = height
       
-      // Draw video frame to canvas (mirrored)
-      ctx.translate(canvas.width, 0)
+      // Draw video frame to canvas (mirrored) - optimized
+      ctx.save()
+      ctx.translate(width, 0)
       ctx.scale(-1, 1)
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.drawImage(video, 0, 0, width, height)
+      ctx.restore()
       
-      // Get image data as base64
-      const imageData = canvas.toDataURL('image/jpeg', 0.8)
+      // Get image data as base64 (faster quality for performance)
+      const imageData = canvas.toDataURL('image/jpeg', 0.6)
       
       // Send to AI service
       const result = await predictGesture(imageData, true)
+      console.log('Prediction result:', result)
       
       if (result && result.prediction) {
         const { gesture, vietnamese_text, confidence } = result.prediction
+        console.log('Detected gesture:', gesture, 'with confidence:', confidence)
         
         // Only update if gesture is detected (not no_hand or error)
-        if (gesture && gesture !== 'no_hand' && gesture !== 'error') {
+        if (gesture && gesture !== 'no_hand' && gesture !== 'error' && gesture !== 'unknown') {
           setCurrentResult({
             gesture,
             vietnameseText: vietnamese_text,
@@ -123,11 +166,15 @@ const CameraPage = () => {
             timestamp: new Date()
           })
           
+          console.log('Updated result:', gesture, vietnamese_text, confidence)
+          
           // Auto speak if enabled and text changed
           if (isAutoTranslate && vietnamese_text && vietnamese_text !== lastSpokenText) {
             speakText(vietnamese_text)
             setLastSpokenText(vietnamese_text)
           }
+        } else {
+          console.log('No valid gesture detected:', gesture)
         }
       }
     } catch (err) {
@@ -149,7 +196,7 @@ const CameraPage = () => {
     } else {
       // Start
       setIsAutoTranslate(true)
-      intervalRef.current = setInterval(captureAndPredict, 2000) // Check every 2 seconds
+      intervalRef.current = setInterval(captureAndPredict, 500) // Check every 0.5 seconds for faster response
     }
   }, [isAutoTranslate, captureAndPredict])
 

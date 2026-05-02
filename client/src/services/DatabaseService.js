@@ -17,6 +17,18 @@ export class DatabaseService extends Dexie {
     this.settings = this.table('settings')
   }
 
+  async initialize() {
+    try {
+      // Open database connection
+      await this.open()
+      console.log('Database initialized successfully')
+      return true
+    } catch (error) {
+      console.error('Error initializing database:', error)
+      throw error
+    }
+  }
+
   // Translation methods
   async saveTranslation(translationData) {
     try {

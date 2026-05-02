@@ -29,18 +29,31 @@ export class AIService {
     try {
       console.log('Initializing AI service...')
       
-      // Initialize with timeout
+      // Initialize with longer timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('AI service initialization timeout')), 10000)
+        setTimeout(() => reject(new Error('AI service initialization timeout')), 20000)
       )
 
-      await Promise.race([
-        Promise.all([
+      // Initialize services separately to avoid one failure blocking the other
+      try {
+        await Promise.race([
           this.handDetector.initialize(),
-          this.gestureClassifier.initialize()
-        ]),
-        timeoutPromise
-      ])
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Hand detector timeout')), 15000))
+        ])
+        console.log('Hand detector initialized successfully')
+      } catch (error) {
+        console.warn('Hand detector initialization failed:', error.message)
+      }
+
+      try {
+        await Promise.race([
+          this.gestureClassifier.initialize(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Gesture classifier timeout')), 15000))
+        ])
+        console.log('Gesture classifier initialized successfully')
+      } catch (error) {
+        console.warn('Gesture classifier initialization failed:', error.message)
+      }
 
       this.isInitialized = true
       console.log('AI service initialized successfully')

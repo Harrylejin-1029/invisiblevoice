@@ -81,7 +81,8 @@ const authReducer = (state, action) => {
     case AUTH_ACTIONS.CLEAR_ERROR:
       return {
         ...state,
-        error: null
+        error: null,
+        isInitialized: true
       };
 
     default:

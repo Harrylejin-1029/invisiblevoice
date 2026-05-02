@@ -172,6 +172,23 @@ export const AppProvider = ({ children }) => {
     return false
   }, [])
 
+  // Health check function
+  const checkHealth = useCallback(async () => {
+    try {
+      const health = await aiService.healthCheck()
+      setServerStatus(prev => ({
+        ...prev,
+        ai: health.status === 'healthy'
+      }))
+    } catch (error) {
+      console.error('Health check failed:', error)
+      setServerStatus(prev => ({
+        ...prev,
+        ai: false
+      }))
+    }
+  }, [])
+
   // Check health on mount
   useEffect(() => {
     checkHealth()
